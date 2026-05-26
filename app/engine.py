@@ -9,13 +9,15 @@ import face_recognition
 from sklearn import svm
 from app.database import get_base_data_dir, init_global_db
 
-class MediaFaceEngine:
+class Engine:
     def __init__(self):
         self.data_dir = get_base_data_dir()
         self.global_db_path = init_global_db()
         self.model_path = self.data_dir / "global_face_model.pkl"
-        self.clf = self.load_model()
         
+        # Face Recognition
+        self.clf = self.load_model()
+
     def load_model(self):
         if self.model_path.exists():
             try:
@@ -54,7 +56,7 @@ class MediaFaceEngine:
         except Exception:
             return False
     
-    def process_media_file(self, original_path: Path, workspace_db, enable_face):
+    def process_media_file(self, original_path: Path, workspace_db, settings):
         """Processes an image file by generating thumbnails and calculating facial
         embeddings."""
         try:
@@ -68,13 +70,15 @@ class MediaFaceEngine:
             w_cursor.execute("""
             INSERT OR IGNORE INTO media (file_path, file_name, thumbnail_name, face_scanned)
             VALUES (?, ?, ?, ?)
-            """, (str(original_path), original_path.name, thumb_name, 1 if enable_face else 0))
+            """, (str(original_path), original_path.name, thumb_name, 1 if settings.enable_face else 0))
             media_id = w_cursor.lastrowid
             if not media_id:
                 w_cursor.execute("SELECT id FROM media WHERE file_path = ?",
                 (str(original_path),))
                 dia_id = w_cursor.fetchone()[0]
-            if enable_face:
+                
+                
+            if settings.enable_face:
                 raw_img = face_recognition.load_image_file(str(original_path))
                 boxes = face_recognition.face_locations(raw_img, model="hog")
                 vecs = face_recognition.face_encodings(raw_img, boxes)
@@ -515,3 +519,4 @@ class MediaFaceEngine:
         count = cursor.fetchone()[0]
         conn.close()
         return count
+
